@@ -158,7 +158,7 @@ Paper: [FlashAttention (Dao et al., 2022)](https://arxiv.org/abs/2205.14135). Ba
 
 **Core idea: Divide Q/K/V computation into tiles that fit in shared memory and registers.**
 
-Divides computation into blocks sized for fast on-chip memory. FlashAttention loads Q, K, and V tiles, computes partial attention, and accumulates the output without writing the full intermediate matrices to HBM. [Source: FlashAttention, Section 3](https://arxiv.org/pdf/2205.14135).
+Divides computation into blocks sized for fast on-chip [[knowledge/cuda/memory#4. Shared Memory|shared memory]] and [[knowledge/cuda/memory#1. Registers|registers]]. FlashAttention loads Q, K, and V tiles, computes partial attention, and accumulates the output without writing the full intermediate matrices to HBM. [Source: FlashAttention, Section 3](https://arxiv.org/pdf/2205.14135).
 
 ### 3. Online Softmax
 

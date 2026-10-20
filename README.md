@@ -14,6 +14,8 @@ explicit workflow configuration specifies another language.
 - AI infrastructure knowledge: [training concepts](knowledge/ai-infra/training.md),
   [inference concepts](knowledge/ai-infra/inference.md), and
   [parallelism and state sharding](knowledge/ai-infra/parallelism.md).
+- [CUDA knowledge](knowledge/cuda/README.md): execution, memory and data movement,
+  instructions, and performance analysis, with question-wall provenance.
 - [Shared skills](skills/README.md): AI-assisted workflows for maintaining the
   knowledge base.
 
