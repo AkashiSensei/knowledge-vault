@@ -13,7 +13,7 @@
 
 ## Repository Identity And Language
 
-- The GitHub repository is `AkashiSensei/research-vault`.
+- The GitHub repository is `AkashiSensei/knowledge-vault`.
 - Keep the existing local checkout path unchanged when updating repository
   names or Git remote URLs.
 - Write repository content in English by default, including notes, reports,
@@ -25,8 +25,9 @@
 
 ## Repository Semantics
 
-This repository is a research and technical knowledge base. Markdown is the primary artifact,
-so commit types must describe the knowledge workflow rather than the file type.
+This repository is a knowledge base for research, engineering, and technical
+learning. Markdown is the primary artifact, so commit types must describe the
+knowledge workflow rather than the file type.
 Do not default to `docs(...)` merely because a change edits Markdown.
 
 Use commit subjects in the form `<type>(<scope>): <imperative description>`:

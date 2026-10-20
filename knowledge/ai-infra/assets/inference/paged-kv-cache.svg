@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="770" viewBox="0 0 1200 770" role="img" aria-labelledby="title desc">
 <title id="title">Paged KV: logical sequence order, non-contiguous physical blocks</title>
 <desc id="desc">A logical block zero maps to physical block three, and A logical block one maps to physical block zero. B logical block zero maps to physical block four. Remaining physical blocks are unassigned. Tail capacity in allocated final blocks remains unused.</desc>
-<metadata>Original explanatory diagram for research-vault. References: PagedAttention, https://arxiv.org/abs/2309.06180</metadata>
+<metadata>Original explanatory diagram for knowledge-vault. References: PagedAttention, https://arxiv.org/abs/2309.06180</metadata>
 <defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L9,4.5 L0,9 Z" fill="#52637A"/></marker><pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse"><rect width="8" height="8" fill="#F2F4F7"/><path d="M0,8 L8,0" stroke="#D5DDE6" stroke-width="1"/></pattern></defs>
 <style>text{font-family:Arial,Helvetica,sans-serif;fill:#172B43} .mono{font-family:Menlo,Consolas,monospace}</style>
 <rect x="0" y="0" width="1200" height="770" rx="0" fill="#FFFFFF" stroke="none"/>

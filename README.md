@@ -1,6 +1,6 @@
-# research-vault
+# knowledge-vault
 
-A knowledge base for paper notes, research analysis, and technical understanding.
+A personal knowledge vault for research, engineering, and technical learning.
 Open the repository root as one Obsidian vault so notes across modules can link
 to each other.
 
