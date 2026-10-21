@@ -41,5 +41,5 @@ The IDs below identify the source chains in the personal homepage's `src/data/qu
 
 ## II. Illustration Provenance
 
-- `assets/nvidia-gpu-microarchitecture.png` is an unchanged copy of the user-supplied `nvidia_gpu_microarchitecture_clean_layout.png` from the local CUDA learning collection. Its Chinese labels and Hopper scope are preserved; no external authorship is inferred. It appears in [[knowledge/cuda/execution-model#I. Hardware Organization|hardware organization]] and [[knowledge/cuda/memory#I. Storage and Address Spaces|memory storage]].
+- `assets/nvidia-gpu-microarchitecture.svg` is an unchanged copy of the user-supplied `nvidia_gpu_microarchitecture_clean_layout.svg` from the local CUDA learning collection. Its Chinese labels and Hopper scope are preserved; no external authorship is inferred. It appears in [[knowledge/cuda/execution-model#I. Hardware Organization|hardware organization]] and [[knowledge/cuda/memory#I. Storage and Address Spaces|memory storage]].
 - Mermaid diagrams are original explanatory schematics. Their arrows describe control flow, compilation/resource assignment, or command references, as stated beside each diagram.

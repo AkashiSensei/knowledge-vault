@@ -9,9 +9,9 @@ The hardware hierarchy and the execution hierarchy describe different kinds of c
 - **Hardware:** a GPU contains SMs; an SM contains SMSPs; each SMSP has a warp scheduler, register resources, and execution pipelines. Some resources, including L1/shared memory, are shared across SMSPs.
 - **Execution:** a grid contains thread blocks; a block groups its threads into warps. A block is placed on an SM, and its warps are assigned to SMSPs within that SM. A scheduler manages warps; it is not the storage location for all their state.
 
-![Hopper H100 conceptual organization showing SMs, scheduling, storage paths, and asynchronous copies](assets/nvidia-gpu-microarchitecture.png)
+![Hopper H100 conceptual organization showing SMs, scheduling, storage paths, and asynchronous copies](assets/nvidia-gpu-microarchitecture.svg)
 
-*Reproduced unchanged from the user's local learning diagram, `nvidia_gpu_microarchitecture_clean_layout.png`. Its original Chinese labels are preserved. This is a Hopper H100 / SM90 conceptual map, not a physical wiring diagram or a specification for every GPU. Shared L1/shared-memory SRAM does not make their access semantics identical; register bypass does not mean cache bypass. Technical references: [Hopper tuning guide](https://docs.nvidia.com/cuda/hopper-tuning-guide/index.html) and [Nsight Compute hardware model](https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html#metrics-hw-model).*
+*Reproduced unchanged from the user's local learning diagram, `nvidia_gpu_microarchitecture_clean_layout.svg`. Its original Chinese labels are preserved. This is a Hopper H100 / SM90 conceptual map, not a physical wiring diagram or a specification for every GPU. Shared L1/shared-memory SRAM does not make their access semantics identical; register bypass does not mean cache bypass. Technical references: [Hopper tuning guide](https://docs.nvidia.com/cuda/hopper-tuning-guide/index.html) and [Nsight Compute hardware model](https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html#metrics-hw-model).*
 
 ### 1. Streaming Multiprocessor
 

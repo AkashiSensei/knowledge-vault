@@ -4,9 +4,9 @@ Concise entries on storage, access patterns, and asynchronous copies. Address sp
 
 ## I. Storage and Address Spaces
 
-![Hopper H100 conceptual organization showing registers, L1/shared memory, L2, HBM, and asynchronous copy paths](assets/nvidia-gpu-microarchitecture.png)
+![Hopper H100 conceptual organization showing registers, L1/shared memory, L2, HBM, and asynchronous copy paths](assets/nvidia-gpu-microarchitecture.svg)
 
-*Reproduced unchanged from the user's local learning diagram, `nvidia_gpu_microarchitecture_clean_layout.png`, with its original Chinese labels preserved. Focus on the storage locations and data-movement paths. This is a Hopper H100 / SM90 conceptual map; shared L1/shared-memory SRAM does not make their access semantics identical, and register bypass does not mean cache bypass. Technical reference: [Hopper tuning guide](https://docs.nvidia.com/cuda/hopper-tuning-guide/index.html).*
+*Reproduced unchanged from the user's local learning diagram, `nvidia_gpu_microarchitecture_clean_layout.svg`, with its original Chinese labels preserved. Focus on the storage locations and data-movement paths. This is a Hopper H100 / SM90 conceptual map; shared L1/shared-memory SRAM does not make their access semantics identical, and register bypass does not mean cache bypass. Technical reference: [Hopper tuning guide](https://docs.nvidia.com/cuda/hopper-tuning-guide/index.html).*
 
 ### 1. Registers
 
