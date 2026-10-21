@@ -16,6 +16,8 @@ explicit workflow configuration specifies another language.
   [parallelism and state sharding](knowledge/ai-infra/parallelism.md).
 - [CUDA knowledge](knowledge/cuda/README.md): execution, memory and data movement,
   instructions, and performance analysis, with question-wall provenance.
+- [Distributed systems knowledge](knowledge/distributed-systems/README.md):
+  shared concepts and system-specific notes, starting with [Ceph](knowledge/distributed-systems/ceph/README.md).
 - [Shared skills](skills/README.md): AI-assisted workflows for maintaining the
   knowledge base.
 
