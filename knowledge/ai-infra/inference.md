@@ -3,13 +3,26 @@
 Concise entries on autoregressive LLM inference, grouped into:
 
 - Execution phases and state
+- Attention architecture and position encoding
 - Request scheduling and operator batching
 - KV-cache memory management
 - Attention kernels
 - Decoding strategies
 - Serving architecture
+- Serving frameworks
 
 Related: [[knowledge/ai-infra/parallelism|Parallelism and state sharding]] covers DP, ZeRO, TP, and PP across training and inference.
+
+## 一些研究的方向
+
+- 动态资源感知
+- 输出长度预测（长度、置信上界）
+- 长短任务感知（相对顺序）
+- PD 联合调度
+- 缓存感知调度
+- SLO 改制调度
+- Chunked Prefill
+- 跨 GPU 动态迁移
 
 ## I. Execution Phases and Attention State
 
@@ -35,7 +48,65 @@ The **KV cache** stores previously computed key and value vectors for each atten
 
 Related paper: [[paper-vault/papers/kwon2023pagedattention|PagedAttention]].
 
-## II. Request Scheduling and Operator Batching
+### 4. Autoregressive Token Generation
+
+**Core idea: Process the current input through the model, then select the next token from vocabulary scores.**
+
+For an ordinary decoder-only Transformer, a token ID is mapped to an embedding and processed through every Transformer layer. During cached decode, each layer computes the current token's Q/K/V, attends to the appropriate cached and current KV state, and appends the new KV. The LM head projects the final hidden vector of dimension `H` into `V` logits, one score per vocabulary token. Greedy decoding selects the highest score; sampling selects from a probability distribution derived from the scores. [Sources: Transformer foundations](https://arxiv.org/abs/1706.03762); [Transformers generation guide](https://huggingface.co/docs/transformers/en/llm_tutorial).
+
+```text
+Token ID -> Embedding -> All Transformer layers -> LM head -> Vocabulary logits -> Next token
+
+Prompt [A, B, C]: prefill processes A/B/C; the final prompt position predicts D.
+Next decode step: process D using cached A/B/C state to predict E.
+Next decode step: process E using cached A/B/C/D state to predict F.
+```
+
+*Original schematic for ordinary autoregressive decoding; A–F denote tokens, not necessarily individual characters. KV caching reuses historical computations while the newly processed token still traverses every layer. Generation repeats until EOS, another stop condition, or a token limit. [[knowledge/ai-infra/inference#1. Speculative Decoding|Speculative decoding]] changes the one-token-per-step pattern. [Source: Transformers cache explanation](https://huggingface.co/docs/transformers/en/cache_explanation).*
+
+## II. Attention Architecture and Position Encoding
+
+These are model-design choices learned during training; serving engines must support the checkpoint's architecture. For standard MHA/MQA/GQA with equal key and value head dimensions, the logical KV storage for one sequence is approximately:
+
+$$
+M_{\mathrm{KV}} = 2 L T H_{\mathrm{KV}} d_h b,
+$$
+
+where `L` is the layer count, `T` the cached token count, `H_KV` the number of KV heads, `d_h` the head dimension, and `b` the bytes per element. This excludes allocator overhead and distributed replication. The following toy example fixes eight query heads and all other dimensions:
+
+| Attention | KV heads | Query heads sharing each KV head | KV storage relative to MHA |
+| --- | ---: | ---: | ---: |
+| MHA (Multi-Head Attention) | 8 | 1 | 1 |
+| GQA with two KV groups | 2 | 4 | 1/4 |
+| MQA | 1 | 8 | 1/8 |
+
+These ratios describe stored KV elements, not end-to-end speedups. [Sources: MQA](https://arxiv.org/abs/1911.02150); [GQA](https://arxiv.org/abs/2305.13245).
+
+### 1. Multi-Query Attention (MQA)
+
+Keeps multiple query heads but shares one key head and one value head across them. Each query head still computes its own attention weights. Sharing reduces KV-cache capacity and bandwidth requirements during decode; it does not eliminate the per-query-head attention computation. The reduced KV representation can affect model quality and requires an appropriately trained or adapted checkpoint. [Source: Fast Transformer Decoding](https://arxiv.org/abs/1911.02150).
+
+### 2. Grouped-Query Attention (GQA)
+
+Partitions query heads into groups, with each group sharing one key head and one value head. It provides a quality/efficiency trade-off between MHA and MQA: `H_KV = H_Q` gives MHA, while `H_KV = 1` gives MQA. Efficient kernels reuse each group's KV data without physically duplicating it for every query head. The GQA paper also demonstrates adapting MHA checkpoints through additional training. [Source: GQA](https://arxiv.org/abs/2305.13245).
+
+### 3. Multi-Head Latent Attention (MLA)
+
+DeepSeek-V2 jointly compresses each token's keys and values into a smaller learned latent vector, `c_KV`. Head-specific projections derive content keys and values from this shared latent. During optimized decode, key up-projection can be absorbed into the query projection and value up-projection into the output projection, allowing attention to use the compressed cache without materializing full historical K/V tensors.
+
+Ordinary [[knowledge/ai-infra/inference#4. Rotary Position Embedding (RoPE)|RoPE]] on content keys obstructs this absorption. MLA therefore separates positional Q/K components from content components and caches a small RoPE key alongside `c_KV`. Its per-token, per-layer cache contains roughly `d_c + d_R` elements, where `d_c` is the KV latent dimension and `d_R` the positional-key dimension. Savings and speed depend on those dimensions and the kernel implementation. [Source: DeepSeek-V2, Sections 2.1.2–2.1.4](https://arxiv.org/html/2405.04434v5#S2.SS1.SSS2).
+
+### 4. Rotary Position Embedding (RoPE)
+
+Encodes position by rotating pairs of query and key coordinates through position-dependent angles, with different frequencies across pairs. For unrotated vectors `q_m`, `k_n` and rotation matrix `R(p)`:
+
+$$
+(R(m)q_m)^\top(R(n)k_n) = q_m^\top R(n-m)k_n.
+$$
+
+This makes relative position enter the attention score; standard RoPE leaves values unrotated. During decode, ordinary implementations cache rotated keys and rotate each new query/key at its assigned position. RoPE preserves vector dimensionality and does not itself compress KV state. Extrapolation beyond training lengths still needs validation; the formula alone does not guarantee long-context quality. [Source: RoFormer, Section 3](https://arxiv.org/html/2104.09864v5#S3).
+
+## III. Request Scheduling and Operator Batching
 
 Orca introduced iteration-level scheduling and selective batching together: the former selects requests each round; the latter executes them. The arrows show runtime information flow. [Source: Orca](https://www.usenix.org/system/files/osdi22-yu.pdf).
 
@@ -101,7 +172,19 @@ Defines which key positions a query may attend to. A **padding mask** excludes a
 
 Related paper: [[paper-vault/papers/vaswani2017attention|Transformer]].
 
-## III. KV-Cache Memory Management
+### 7. Chunked Prefill
+
+Splits a long prompt's prefill into smaller token chunks, allowing decode work to run between or alongside them under a per-iteration token budget. Smaller chunks limit decode stalls; larger chunks can improve prefill efficiency. Chunk size therefore trades off TTFT, inter-token latency, and throughput. [Sources: Sarathi-Serve](https://arxiv.org/abs/2403.02310); [vLLM optimization guide](https://docs.vllm.ai/en/latest/configuration/optimization/#chunked-prefill).
+
+### 8. Cache-Aware Scheduling
+
+Uses reusable-prefix information to order waiting requests. SGLang offers **LPM** (Longest Prefix Match), favoring longer cached prefixes, and **DFS-Weight**, grouping requests by shared prefix subtrees to improve reuse. These are optional policies; the documented default is FCFS. Cache reuse must be balanced against waiting time and fairness. [Sources: SGLang paper](https://arxiv.org/abs/2312.07104); [SGLang scheduling options](https://docs.sglang.io/docs/advanced_features/server_arguments#memory-and-scheduling).
+
+### 9. Overlap Scheduling
+
+Overlaps CPU preparation of the next batch, including scheduling, prefix matching, and memory metadata, with GPU execution of the current batch. SGLang's “zero-overhead” scheduler hides this CPU work where dependencies permit, reducing GPU idle gaps; CPU work and synchronization still exist. [Source: SGLang scheduler design](https://www.lmsys.org/blog/2024-12-04-sglang-v0-4/#zero-overhead-batch-scheduler).
+
+## IV. KV-Cache Memory Management
 
 Orca reserves each request's maximum KV capacity; vLLM assigns blocks as needed. This allocation change complements iteration-level scheduling. The diagram compares their memory costs. [Sources: Orca](https://www.usenix.org/system/files/osdi22-yu.pdf); [PagedAttention](https://arxiv.org/abs/2309.06180).
 
@@ -126,7 +209,15 @@ Compared with Orca's maximum-length reservation, this avoids reserving the full 
 
 Related papers: [[paper-vault/papers/kwon2023pagedattention|PagedAttention]]; [[paper-vault/papers/yu2022orca|Orca's reservation baseline]].
 
-## IV. Attention Kernel Optimization
+### 2. Automatic Prefix Caching
+
+Retains computed KV state so later requests with the same prefix can skip repeated prefill. Reuse requires compatible model and input state; matching text in a different preceding context is insufficient. vLLM indexes full KV blocks using hashes incorporating the preceding prefix, block tokens, and relevant extra state. This primarily saves prompt computation; subsequent tokens still require decoding. [Source: vLLM prefix-cache design](https://docs.vllm.ai/en/latest/design/prefix_caching/).
+
+### 3. RadixAttention
+
+SGLang organizes token prefixes and their KV-cache locations in a **radix tree**, whose edges can represent multiple tokens. Prefix matching finds reusable state; inserting diverging requests splits edges. The original design retains completed requests' KV state and evicts unused leaves with LRU while protecting active references. The tree indexes GPU-resident KV data and exposes sharing relationships to [[knowledge/ai-infra/inference#8. Cache-Aware Scheduling|cache-aware scheduling]]. It complements paged storage. [Source: SGLang's RadixAttention design](https://www.lmsys.org/blog/2024-01-17-sglang/#backend-automatic-kv-cache-reuse-with-radixattention).
+
+## V. Attention Kernel Optimization
 
 Here, “Flash” is part of the technique names, suggesting speed; it does not refer to flash memory or a standalone algorithmic step.
 
@@ -192,7 +283,7 @@ $$
 
 The partial outputs must be weighted by their normalization statistics, rather than simply averaged. [Source: Flash-Decoding author explanation](https://crfm.stanford.edu/2023/10/12/flashdecoding.html).
 
-## V. Decoding Strategies
+## VI. Decoding Strategies
 
 ### 1. Speculative Decoding
 
@@ -220,7 +311,11 @@ A small draft model proposes a token sequence. Because those candidates are alre
 
 Multi-token verification amortizes weight reads across positions when decode is bandwidth-bound with spare compute capacity. Drafting, extra model/cache memory, and rejected work add overhead; low acceptance rates or already compute-saturated batches can erase the gain. [Source: Speculative Decoding (Leviathan et al., 2023)](https://arxiv.org/abs/2211.17192).
 
-## VI. Serving Architecture
+### 2. Structured Generation / Constrained Decoding
+
+Tracks a grammar's state and masks invalid next tokens before sampling, constraining output to a supported JSON schema, regex, or grammar. SGLang's original work used compressed finite state machines; later integrations include XGrammar, which vLLM also supports. Constraints enforce output structure rather than factual correctness, and grammar processing adds overhead that optimized backends seek to minimize. [Sources: SGLang paper](https://arxiv.org/abs/2312.07104); [SGLang structured outputs](https://docs.sglang.io/docs/advanced_features/structured_outputs); [vLLM structured outputs](https://docs.vllm.ai/en/latest/features/structured_outputs/).
+
+## VII. Serving Architecture
 
 ### 1. Prefill / Decode Disaggregation
 
@@ -233,3 +328,19 @@ The goal is **per-GPU goodput**: the maximum request rate per GPU that meets the
 The trade-off is latency isolation and independent resource allocation versus KV-transfer overhead, separate model deployments, and load balancing. Colocation with chunked prefill can exploit complementary resource demands while limiting decode stalls; disaggregation is not universally better. The choice depends on latency targets, workload, and interconnect capacity. [Sources: DistServe](https://arxiv.org/abs/2401.09670); [Sarathi-Serve](https://arxiv.org/abs/2403.02310).
 
 This placement strategy can complement speculative decoding within the decode group.
+
+### 2. Cache-Aware Routing
+
+Places incoming requests on workers likely to hold reusable prefix KV state, while balancing load. SGLang's cache-aware router introduced approximate radix-tree tracking to estimate worker cache locality without synchronizing exact cache contents. This extends reuse across a deployment; queueing on a cache-rich worker can outweigh saved prefill work. [Source: SGLang cache-aware load balancer](https://www.lmsys.org/blog/2024-12-04-sglang-v0-4/#cache-aware-load-balancer).
+
+## VIII. Serving Frameworks
+
+Both **vLLM** and **SGLang** integrate these techniques into inference-serving runtimes. Their representative designs differ, while their supported capabilities overlap substantially.
+
+| Aspect | vLLM | SGLang |
+| --- | --- | --- |
+| Representative foundation | PagedAttention: efficient block-based KV storage and attention access. | RadixAttention: automatic prefix reuse across generation calls. |
+| Prefix-cache index | Hash-indexed full blocks, incorporating preceding-prefix identity. | Radix tree exposing shared token-prefix structure. |
+| Notable design emphasis | Paged KV management integrated with continuous batching. | Prefix reuse integrated with cache-aware scheduling/routing and CPU/GPU overlap. |
+
+Both support continuous batching, chunked prefill, speculative decoding, structured outputs, distributed parallelism, and PD disaggregation. Compare them using the same model, hardware, request lengths, prefix-sharing patterns, and latency targets; the index structure alone does not establish a performance winner. [Sources: vLLM overview](https://docs.vllm.ai/en/latest/); [vLLM prefix caching](https://docs.vllm.ai/en/latest/design/prefix_caching/); [SGLang runtime overview](https://github.com/sgl-project/sglang); [SGLang paper](https://arxiv.org/abs/2312.07104).
