@@ -18,6 +18,8 @@ explicit workflow configuration specifies another language.
   instructions, and performance analysis, with question-wall provenance.
 - [Distributed systems knowledge](knowledge/distributed-systems/README.md):
   shared concepts and system-specific notes, starting with [Ceph](knowledge/distributed-systems/ceph/README.md).
+- [Interview preparation](interview-prep/README.md): concise Chinese questions
+  and answers organized by technical direction.
 - [Shared skills](skills/README.md): AI-assisted workflows for maintaining the
   knowledge base.
 
