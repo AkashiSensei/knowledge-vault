@@ -8,8 +8,8 @@
   use `AGENTS.override.md` when present; otherwise use `AGENTS.md`.
 - Nested instructions supplement these rules within their directory subtree.
   More specific instructions take precedence when rules conflict.
-- Module instructions: [knowledge](knowledge/AGENTS.md) and
-  [paper vault](paper-vault/AGENTS.md).
+- Module instructions: [knowledge](knowledge/AGENTS.md),
+  [paper vault](paper-vault/AGENTS.md), and [reports](reports/AGENTS.md).
 
 ## Repository Identity And Language
 
@@ -22,6 +22,8 @@
   that default. Do not infer a different artifact language solely from the
   language used in the chat.
 - Preserve existing content languages unless translation is requested.
+- Keep machine-specific paths, local account names, cloud-sync locations, and
+  private source-folder names out of repository content and metadata.
 
 ## Repository Semantics
 
@@ -60,8 +62,9 @@ them with a period.
   `[[paper-vault/papers/wang2025jenga]]` for links that include directories.
 - Keep reusable technical knowledge in `knowledge/`, grouped by domain;
   follow its module instructions for writing and visual explanations.
-- Future research reports belong outside the paper module. Do not create
-  content directories until they are needed.
+- Keep research surveys, landscape reports, and research-direction analyses in
+  `reports/`, with one directory per report; follow its module instructions.
+  Create report directories only when their content is ready.
 
 ## Commit Boundaries
 

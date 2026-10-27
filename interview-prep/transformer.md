@@ -54,7 +54,7 @@ Post-Norm 是子层计算、残差相加后再归一化；Pre-Norm 是先归一�
 
 ### RoPE 相对直接添加位置向量改变了什么？
 
-RoPE 按位置对 Q、K 的成对分量施加旋转，让注意力点积体现相对位置信息，而不是只在输入 embedding 上加一个位置向量。它是常见的位置建模方式，但采用 RoPE 不等于自动获得无限长上下文，长度扩展仍涉及训练分布、频率/缩放策略以及注意力的计算和缓存成本。[参考：RoFormer](https://arxiv.org/abs/2104.09864)。
+RoPE 按位置对 Q、K 的成对分量施加旋转，让注意力点积体现相对位置信息，而不是只在输入 embedding 上加一个位置向量。它是常见的位置建模方式，但采用 RoPE 不等于自动获得无限长上下文，长度扩展仍涉及训练分布、频率/缩放策略以及注意力的计算和缓存成本。[参考：RoFormer](https://arxiv.org/abs/2104.09864)。相关追问见 [[interview-prep/transformer#III. 长上下文支持|长上下文支持]]。
 
 ### MoE 在 Transformer block 中通常改变什么？
 
@@ -89,3 +89,21 @@ RoPE 按位置对 Q、K 的成对分量施加旋转，让注意力点积体现�
 ### MoE 问题里的“系统实现”具体指什么？
 
 这里指训推框架如何将 MoE 的模型计算高效、正确地执行在 GPU 集群上。模型结构规定 Router 选专家并合并输出；执行实现还要安排专家权重放在哪张卡、按专家聚合和重排 token、组织跨卡通信、启动专家计算、恢复 token 顺序，以及训练时的反向传播与参数更新。还需处理显存、负载均衡和通信计算重叠。典型涉及 Megatron-Core 等框架、CUDA 算子和 NCCL 通信库，是模型计算的执行层，不等同于平台层的作业提交或资源配额管理。[参考：Megatron Core MoE](https://docs.nvidia.com/megatron-core/developer-guide/latest/user-guide/features/moe.html)。
+
+## III. 长上下文支持
+
+### 如何让大语言模型支持更长的上下文，主要瓶颈是什么？
+
+要同时解决“位置能否泛化、信息能否有效利用、系统成本能否接受”三个问题。超出训练长度时，位置关系可能偏离已学分布；即使位置可表示，模型也未必能在大量干扰中检索和关联远处信息；更长序列还会增加 Attention 计算、训练激活和推理 KV Cache 成本。通常结合位置插值或频率缩放、长上下文继续预训练或微调，以及高效 Attention、缓存优化和多卡并行，并在目标长度上验证检索与推理效果，不能只修改最大长度配置。[参考：Position Interpolation](https://arxiv.org/abs/2306.15595)、[Lost in the Middle](https://arxiv.org/abs/2307.03172)、[FlashAttention](https://arxiv.org/abs/2205.14135)。
+
+### 超出训练长度就遇到陌生的位置编码，这个理解对吗？RoPE 能解决吗？
+
+部分正确，但不能理解为所有位置编码都在查一张位置表。可学习的绝对位置表可能没有超出范围的条目；RoPE 则按位置计算旋转，能为更远的位置生成编码，并让 Q/K 点积体现相对位置。不过，“公式算得出来”不等于模型能理解未训练过的距离和旋转相位组合，直接外推仍可能失效。位置插值把更长序列的位置压回原有范围，YaRN 等进一步调整旋转频率与注意力缩放，常配合微调适应；RoPE 提供了扩展的基础，不会自动赋予无限长上下文能力。原理见 [[knowledge/ai-infra/inference#4. Rotary Position Embedding (RoPE)|RoPE]]。[参考：Position Interpolation](https://arxiv.org/abs/2306.15595)、[YaRN](https://arxiv.org/abs/2309.00071)。
+
+### 支持长输入，是否还需要用长数据训练模型捕捉远距离信息？
+
+通常需要相应的训练适配，但不一定从头就用目标最大长度完成全部预训练，可以在已有模型上做长上下文继续预训练或指令微调。数据应让模型实际使用远距离信息，例如跨段检索、关联和长文总结；仅把互不相关的短文本拼成长序列，并不保证学会这些能力。部分位置扩展方法可在有限训练长度之外取得外推收益，因此也不能把训练时最大长度当成绝对上限。最终要评测相关信息位于不同位置、存在干扰时的表现；能接收长输入不等于能有效利用它。[参考：LongAlign](https://arxiv.org/abs/2401.18058)、[YaRN](https://arxiv.org/abs/2309.00071)、[Lost in the Middle](https://arxiv.org/abs/2307.03172)。
+
+### 显存装得下长上下文，为什么仍可能很慢？系统优化能解决什么？
+
+对标准稠密 Attention，在模型维度固定时，整段 prefill 的注意力计算量随长度近似二次增长；使用 KV Cache 的 decode 每生成一个 token，仍需关注已有上下文，注意力计算和 KV 读取随当前长度增长。固定 batch、层数和 KV 格式时，KV Cache 容量近似线性增长，训练还需保存或重算激活。FlashAttention 减少中间存储和显存搬运，但不消除稠密 Attention 的二次计算量；GQA/MLA、KV 量化可降低缓存成本，激活重计算和多卡切分可缓解容量压力，各有计算、通信或质量取舍。这些优化改善“装得下、跑得动”，不能替代模型对长距离信息的学习。详见 [[knowledge/ai-infra/inference#1. FlashAttention|FlashAttention]]、[[knowledge/ai-infra/inference#3. KV Cache|KV Cache]] 和 [[interview-prep/training#IV. 激活重计算|激活重计算]]。
