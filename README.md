@@ -12,7 +12,8 @@ explicit workflow configuration specifies another language.
 - [Paper vault](paper-vault/README.md): canonical paper notes, literature
   indexes, discovery records, and recurring intake configuration.
 - [Research reports](reports/README.md): research surveys and direction analyses,
-  starting with the [2024–2026 systems landscape](reports/systems-landscape-2024-2026/REPORT.md).
+  covering the 2024–2026 [systems landscape](reports/261027-systems-landscape-2024-2026/REPORT.md)
+  and [software engineering landscape](reports/261028-software-engineering-landscape-2024-2026/REPORT.md).
 - AI infrastructure knowledge: [training concepts](knowledge/ai-infra/training.md),
   [inference concepts](knowledge/ai-infra/inference.md), and
   [parallelism and state sharding](knowledge/ai-infra/parallelism.md).

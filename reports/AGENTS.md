@@ -5,8 +5,13 @@ repository-wide rules in the root `AGENTS.md`.
 
 ## Organization
 
-- Keep one directory per report directly under `reports/`. Use descriptive
-  English directory names, including coverage years when they define its scope.
+- Keep one directory per report directly under `reports/`. Name directories
+  `YYMMDD-topic[-coverage-years]`: a six-digit date prefix, a descriptive
+  lowercase English topic, and coverage years when they define the scope.
+- Use the documented report date for the prefix. If no report date is recorded,
+  use the directory creation date; for existing reports, use their first
+  repository addition date. Keep the prefix stable through later revisions.
+  The prefix is for sorting, not a claim about evidence freshness.
 - Use each report's `REPORT.md` as the report body. Add `evidence/` for supporting
   material when needed. Reserve `README.md` for navigation when needed.
 - Keep preliminary research-background notes and personal advice outside the
